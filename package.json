@@ -1,0 +1,43 @@
+{
+  "name": "nuvio-live-sports-plugin",
+  "version": "3.0.0",
+  "description": "The ultimate live sports streaming add-on for Nuvio/Stremio. Scrapes multiple high-speed providers with a zero-lag proxy.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "jest",
+    "generate:provider": "node scripts/generate-provider.js",
+    "check-sources": "node scripts/check-sources.js"
+  },
+  "dependencies": {
+    "awilix": "^13.0.5",
+    "axios": "^1.19.0",
+    "big-integer": "^1.6.52",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "happy-dom": "^20.11.1",
+    "http-proxy-middleware": "^4.2.0",
+    "jest": "^30.4.2",
+    "js-yaml": "^5.2.2",
+    "m3u8-parser": "^7.2.0",
+    "nock": "^14.0.16",
+    "node-cron": "^4.6.0",
+    "node-fetch": "^2.7.0",
+    "opossum": "^10.0.0",
+    "puppeteer": "^25.4.0",
+    "stremio-addon-sdk": "^1.6.10"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "nuvio",
+    "stremio",
+    "addon",
+    "live-sports",
+    "sports-streaming"
+  ],
+  "license": "MIT"
+}

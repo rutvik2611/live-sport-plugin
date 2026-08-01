@@ -1,0 +1,11 @@
+[Unit]
+Description=PiKVM Homelab Daily Backup Timer
+Documentation=https://github.com/rutvik2611/pikvm-homelab
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=3600
+
+[Install]
+WantedBy=timers.target

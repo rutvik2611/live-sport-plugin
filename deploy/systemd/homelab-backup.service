@@ -1,0 +1,14 @@
+[Unit]
+Description=PiKVM Homelab Daily Backup
+Documentation=https://github.com/rutvik2611/pikvm-homelab
+
+[Service]
+Type=oneshot
+ExecStart=/root/scripts/backup.sh
+StandardOutput=journal
+StandardError=journal
+
+# Security
+ProtectSystem=full
+PrivateTmp=true
+NoNewPrivileges=true

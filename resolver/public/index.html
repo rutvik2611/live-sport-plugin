@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Paste a streamed.pk or embed.st stream URL to resolve the HLS playlist. Play in-browser or copy links for VLC and MPV.">
+  <title>Streamed.pk HLS Stream Resolver</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <h1 class="top__title">Streamed.pk HLS Stream Resolver</h1>
+      <p class="top__desc">Paste a stream URL from <a href="https://streamed.pk" target="_blank" rel="noopener">streamed.pk</a> or <a href="https://embed.st" target="_blank" rel="noopener">embed.st</a> to resolve the HLS playlist, play it here, or copy links for VLC and MPV.</p>
+    </header>
+
+    <section class="card">
+      <form id="form">
+        <label class="resolve__label" for="embed">Stream URL</label>
+        <div class="resolve__row">
+          <input id="embed" type="url" required placeholder="https://streamed.pk/watch/leinster-vs-bulls-2483276/admin/1">
+          <button type="submit">Resolve</button>
+        </div>
+        <p class="resolve__hint">Use the full watch URL from streamed.pk — <code>/admin/1</code> is the source and stream number (quality/server).</p>
+      </form>
+      <p id="err" class="msg msg--err" hidden></p>
+      <ul id="timing" class="timing" hidden>
+        <li>
+          <span class="timing__label">Resolve</span>
+          <span id="t-resolve" class="timing__val">—</span>
+        </li>
+        <li>
+          <span class="timing__label">First frame</span>
+          <span id="t-play" class="timing__val">—</span>
+        </li>
+        <li>
+          <span class="timing__label">Total</span>
+          <span id="t-total" class="timing__val">—</span>
+        </li>
+      </ul>
+    </section>
+
+    <section id="out" class="stack" hidden>
+      <div class="card">
+        <h2 id="title" class="stream-title">Stream</h2>
+        <div class="player">
+          <video id="vid" controls playsinline></video>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="section-title">Export</h3>
+        <ul class="exports">
+          <li>
+            <div class="export__meta">
+              <span class="export__name">Direct URL</span>
+              <span class="export__hint">Upstream M3U8 — often blocked without embed referer</span>
+            </div>
+            <div class="export__row">
+              <input id="direct" readonly>
+              <button type="button" data-copy="direct">Copy</button>
+            </div>
+          </li>
+          <li>
+            <div class="export__meta">
+              <span class="export__name">Proxied URL</span>
+              <span class="export__hint">Through this server — uses embed referer headers</span>
+            </div>
+            <div class="export__row">
+              <input id="proxy" readonly>
+              <button type="button" data-copy="proxy">Copy</button>
+            </div>
+          </li>
+          <li>
+            <div class="export__meta">
+              <span class="export__name">VLC</span>
+              <span class="export__hint">Proxied URL — no Referer needed</span>
+            </div>
+            <div class="export__row">
+              <input id="vlc" readonly>
+              <button type="button" data-copy="vlc">Copy</button>
+            </div>
+          </li>
+          <li>
+            <div class="export__meta">
+              <span class="export__name">MPV</span>
+              <span class="export__hint">Proxied URL — no Referer needed</span>
+            </div>
+            <div class="export__row">
+              <input id="mpv" readonly>
+              <button type="button" data-copy="mpv">Copy</button>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </div>
+  <script type="module" src="/player.js"></script>
+</body>
+</html>

@@ -1,0 +1,219 @@
+# ───────────────────────────────────────────────────────────
+# PiKVM Homelab — Complete Stack
+# Location: /root/homelab/
+# Deploy:  docker compose up -d
+# ───────────────────────────────────────────────────────────
+
+services:
+  # === PHASE 1: Gluetun (NordVPN) ============================
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    restart: unless-stopped
+    
+    # NordVPN credentials — set in .env file (NOT COMMITTED)
+    environment:
+      - VPN_SERVICE_PROVIDER=nordvpn
+      - VPN_TYPE=openvpn
+      # NordVPN Manual Setup Credentials — from .env
+      - OPENVPN_USER=${NORDVPN_USER}
+      - OPENVPN_PASSWORD=${NORDVPN_PASS}
+      - SERVER_REGIONS=United States
+      # Kill switch & DNS leak protection
+      - FIREWALL_VPN_INPUT_PORTS=6881
+      - FIREWALL_OUTBOUND_SUBNETS=0.0.0.0/0
+      - PRIVATE_INTERFACE_DISABLED=off
+      - DNS_PLAINTEXT_ADDRESS=1.1.1.1,1.0.0.1
+      - DNS_KEEP_NAMESERVER=off
+      # Auto reconnect
+      - VPN_ENDPOINT_IP_PERSIST=on
+      - HEALTH_VPN_DURATION_INITIAL=15s
+      - HEALTH_TARGET_ADDRESS=1.1.1.1
+      - HEALTH_VPN_DURATION_ADDITION=10s
+    
+    cap_add:
+      - NET_ADMIN
+    
+    mem_limit: 128m
+    mem_reservation: 64m
+    cpus: 0.25
+    
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    networks:
+      - gluetun_nord
+
+  # === PHASE 2: AdGuard Home (DNS Sinkhole) ===================
+  adguard:
+    image: adguard/adguardhome:latest
+    container_name: adguard
+    restart: unless-stopped
+
+    ports:
+      # DNS — LAN devices use this as their DNS server
+      # If port 53 is taken on the host (systemd-resolved), change to 5353
+      - "53:53/tcp"
+      - "53:53/udp"
+      # Initial setup wizard (one-time; remove after configured)
+      - "3000:3000/tcp"
+
+    volumes:
+      - adguard_work:/opt/adguardhome/work
+      - adguard_conf:/opt/adguardhome/conf
+
+    mem_limit: 128m
+    mem_reservation: 64m
+    cpus: 0.25
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - traefik-public
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.adguard.rule=Host(`dns.rutvik2611.com`)"
+      - "traefik.http.routers.adguard.entrypoints=websecure"
+      - "traefik.http.routers.adguard.tls=true"
+      - "traefik.http.routers.adguard.tls.certresolver=cloudflare"
+      - "traefik.http.services.adguard.loadbalancer.server.port=80"
+      - "traefik.http.routers.adguard.middlewares=secHeaders@file,rateLimit@file"
+
+  # === PHASE 3: Threadfin (IPTV Manager) =====================
+  threadfin:
+    image: fyb/threadfin:latest
+    container_name: threadfin
+    restart: unless-stopped
+    
+    # Threadfin serves M3U/EPG — needs to be on traefik-public for Nuvio
+    # Uses Gluetun's proxy for fetching remote M3U playlists (geo-unlock)
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+      # Route outbound M3U fetches through NordVPN
+      - HTTP_PROXY=http://gluetun:8888
+      - HTTPS_PROXY=http://gluetun:8888
+      - NO_PROXY=localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12
+    
+    volumes:
+      - threadfin_config:/config
+      - threadfin_data:/data
+    
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    
+    mem_limit: 128m
+    mem_reservation: 64m
+    cpus: 0.25
+    
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:34400/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    networks:
+      - traefik-public
+      - gluetun_nord
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.threadfin.rule=Host(`iptv.rutvik2611.com`)"
+      - "traefik.http.routers.threadfin.entrypoints=websecure"
+      - "traefik.http.routers.threadfin.tls=true"
+      - "traefik.http.routers.threadfin.tls.certresolver=cloudflare"
+      - "traefik.http.services.threadfin.loadbalancer.server.port=34400"
+      - "traefik.http.routers.threadfin.middlewares=secHeaders@file,rateLimit@file"
+
+  # === PHASE 4: Uptime Kuma (Monitoring) ======================
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime-kuma
+    restart: unless-stopped
+    
+    volumes:
+      - uptime_kuma_data:/app/data
+    
+    mem_limit: 128m
+    mem_reservation: 64m
+    cpus: 0.25
+    
+    healthcheck:
+      test: ["CMD", "node", "server/server.js", "--health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    networks:
+      - traefik-public
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptime.rule=Host(`status.rutvik2611.com`)"
+      - "traefik.http.routers.uptime.entrypoints=websecure"
+      - "traefik.http.routers.uptime.tls=true"
+      - "traefik.http.routers.uptime.tls.certresolver=cloudflare"
+      - "traefik.http.services.uptime.loadbalancer.server.port=3001"
+      - "traefik.http.routers.uptime.middlewares=secHeaders@file,rateLimit@file"
+
+# === VOLUMES ===================================================
+volumes:
+  adguard_work:
+    driver: local
+  adguard_conf:
+    driver: local
+  threadfin_config:
+    driver: local
+  threadfin_data:
+    driver: local
+  uptime_kuma_data:
+    driver: local
+
+# === NETWORKS ==================================================
+networks:
+  traefik-public:
+    external: true
+  gluetun_nord:
+    driver: bridge
+    internal: false
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

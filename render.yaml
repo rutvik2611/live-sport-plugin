@@ -1,0 +1,23 @@
+# Render.com deployment configuration
+# Render reads this file to know how to build and run the service.
+# Docs: https://render.com/docs/render-yaml
+
+services:
+  - type: web
+    name: nuvio-live-sports
+    runtime: node
+    plan: free          # Free tier — no credit card needed
+    region: oregon      # US West — closest to most CDNs for Streamed.pk
+
+    # Build step: install dependencies
+    buildCommand: npm install
+
+    # Start the server
+    startCommand: npm start
+
+    # Environment variables
+    envVars:
+      - key: PORT
+        value: 10000     # Render's internal port (Render routes HTTPS → this port)
+      - key: NODE_ENV
+        value: production

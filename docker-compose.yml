@@ -1,0 +1,75 @@
+services:
+  live-sport:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rutvik2611/live-sport-plugin:latest
+    container_name: live-sport
+    restart: unless-stopped
+    
+    environment:
+      - PORT=7000
+      - NODE_ENV=production
+      - TZ=America/New_York
+      - ADDON_URL=https://sports.example.com
+    
+    # Resource limits — stay under 512MB on a constrained host
+    mem_limit: 512m
+    mem_reservation: 256m
+    cpus: 1.0
+    
+    # Healthcheck (redundant w/ Dockerfile but explicit here for compose)
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:7000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    
+    # Persistent data
+    volumes:
+      - live-sport-data:/app/data
+      - live-sport-logs:/app/logs
+    
+    # Logging (rotated)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Networks
+    networks:
+      - traefik-public
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M
+      - /app/node_modules/.cache:size=32M
+    
+    # Traefik labels
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.live-sport.rule=Host(`sports.example.com`)"
+      - "traefik.http.routers.live-sport.entrypoints=websecure"
+      - "traefik.http.routers.live-sport.tls=true"
+      - "traefik.http.routers.live-sport.tls.certresolver=cloudflare"
+      - "traefik.http.services.live-sport.loadbalancer.server.port=7000"
+      - "traefik.http.services.live-sport.loadbalancer.passhostheader=true"
+      - "traefik.http.routers.live-sport.middlewares=secHeaders@file,rateLimit@file"
+      
+      # Optional: Watchtower auto-update
+      - "com.centurylinklabs.watchtower.enable=true"
+
+volumes:
+  live-sport-data:
+    driver: local
+  live-sport-logs:
+    driver: local
+
+networks:
+  traefik-public:
+    external: true
